@@ -1,11 +1,7 @@
-use std::env;
-use todo_bin::{help, Todo};
-
+fn main() {
+    println!("Hello, world!");
+}
 
 // USE A STRUCT
 // USE IMPL
 // USE A COMPOSITE
-
-fn main() {
-    println!("Hello, world!");
-}
