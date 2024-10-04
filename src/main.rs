@@ -30,6 +30,16 @@ enum ItemStatus {
     Closed,
 }
 
+impl fmt::Display for ItemStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ItemStatus::New => write!(f, "New"),
+            ItemStatus::Open => write!(f, "Open"),
+            ItemStatus::Closed => write!(f, "Closed"),
+        }
+    }
+}
+
 enum UserType {
     Client,
     Admin,
@@ -128,14 +138,18 @@ impl eframe::App for ClientApp {
 
             let mut show_text = String::from("Raise new");
 
-            if(self.show_ticket_form){show_text = String::from("Discard")}
+            if (self.show_ticket_form) {
+                show_text = String::from("Discard")
+            }
 
             let create_ticket_button: egui::Response = ui.button(format!("{} ticket", show_text));
             if create_ticket_button.clicked() {
-                self.show_ticket_form = !self.show_ticket_form;           
+                self.show_ticket_form = !self.show_ticket_form;
             }
 
+            // Only show form if meant to be shown.
             if (self.show_ticket_form) {
+                // || {} == () => {}
                 ui.horizontal(|ui| {
                     let ticket_name_label = ui.label("Ticket title: ");
                     ui.text_edit_singleline(&mut self.cur_ticket_name)
@@ -171,6 +185,7 @@ impl eframe::App for ClientApp {
 
                 let ticket_button: egui::Response = ui.button("Submit ticket");
 
+                // If submit button clicked, create a new ticket,
                 if ticket_button.clicked() {
                     if self.cur_ticket_priority != ItemPriority::NA {
                         self.issues.push(Issue {
@@ -180,9 +195,31 @@ impl eframe::App for ClientApp {
                             comment_thread: Vec::new(),
                             priority: self.cur_ticket_priority.clone(),
                             status: ItemStatus::New,
-                            time_created: Local::now().to_string(),
+                            // Creating a substring using the &...[..10]
+                            time_created: String::from(&(Local::now().to_string())[..10]),
                         });
                     }
+
+                    // Reset all values.
+                    self.cur_ticket_message = String::from("");
+                    self.cur_ticket_name = String::from("");
+                    self.cur_ticket_priority = ItemPriority::NA;
+                    self.show_ticket_form = false;
+                }
+            }
+
+            // Draw each existing ticket.
+            for issue in self.issues.iter_mut() {
+                // Only draw ticket's you have raised, not other users!
+                if (issue.reporter == self.users[self.logged_in_as].email) {
+                    ui.label(format!(
+                        "{} | {} | {} | {} | {} ",
+                        issue.name,
+                        issue.reporter,
+                        issue.priority,
+                        issue.status,
+                        issue.time_created
+                    ));
                 }
             }
         });
