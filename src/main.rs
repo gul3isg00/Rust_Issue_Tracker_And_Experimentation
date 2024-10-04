@@ -1,7 +1,7 @@
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use chrono::Local;
 use eframe::egui;
-use std::fmt;
+use std::{fmt, usize};
 
 #[derive(PartialEq, Eq, Clone)]
 enum ItemPriority {
@@ -64,6 +64,20 @@ struct Issue {
     time_created: DateTime,
 }
 
+impl Default for Issue {
+    fn default() -> Self {
+        Self {
+            name: String::from("NA"),
+            description: String::from("NA"),
+            reporter: String::from("NA"),
+            comment_thread: Vec::new(),
+            priority: ItemPriority::NA,
+            status: ItemStatus::New,
+            time_created: String::from(&(Local::now().to_string())[..10]),
+        }
+    }
+}
+
 struct User {
     email: String,
     password: String,
@@ -96,6 +110,7 @@ struct ClientApp {
     cur_ticket_priority: ItemPriority,
     cur_ticket_name: String,
     show_ticket_form: bool,
+    focus_issue: usize,
 }
 
 // Instantiates the default variables.
@@ -117,6 +132,7 @@ impl Default for ClientApp {
                 },
             ]),
             logged_in_as: 0,
+            focus_issue: usize::MAX,
             cur_ticket_message: String::from(""),
             cur_ticket_name: String::from(""),
             cur_ticket_priority: ItemPriority::NA,
@@ -130,96 +146,127 @@ impl Default for ClientApp {
 impl eframe::App for ClientApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Rust Issue Tracker");
-            ui.add(egui::Label::new(format!(
-                "Currently logged in as: {}",
-                self.users[self.logged_in_as].username
-            )));
+            // If nothing focussed draw home screen
+            if (self.focus_issue == usize::MAX || self.issues.len() == 0) {
+                ui.heading("Rust Issue Tracker");
+                ui.add(egui::Label::new(format!(
+                    "Currently logged in as: {}",
+                    self.users[self.logged_in_as].username
+                )));
 
-            let mut show_text = String::from("Raise new");
+                let mut show_text = String::from("Raise new");
 
-            if (self.show_ticket_form) {
-                show_text = String::from("Discard")
-            }
+                if (self.show_ticket_form) {
+                    show_text = String::from("Discard")
+                }
 
-            let create_ticket_button: egui::Response = ui.button(format!("{} ticket", show_text));
-            if create_ticket_button.clicked() {
-                self.show_ticket_form = !self.show_ticket_form;
-            }
+                let create_ticket_button: egui::Response =
+                    ui.button(format!("{} ticket", show_text));
+                if create_ticket_button.clicked() {
+                    self.show_ticket_form = !self.show_ticket_form;
+                }
 
-            // Only show form if meant to be shown.
-            if (self.show_ticket_form) {
-                // || {} == () => {}
-                ui.horizontal(|ui| {
-                    let ticket_name_label = ui.label("Ticket title: ");
-                    ui.text_edit_singleline(&mut self.cur_ticket_name)
-                        .labelled_by(ticket_name_label.id);
-                });
-
-                ui.add(egui::TextEdit::multiline(&mut self.cur_ticket_message));
-
-                egui::ComboBox::from_label("Priority:")
-                    .selected_text(self.cur_ticket_priority.to_string())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut self.cur_ticket_priority,
-                            ItemPriority::Low,
-                            "Low",
-                        );
-                        ui.selectable_value(
-                            &mut self.cur_ticket_priority,
-                            ItemPriority::Medium,
-                            "Medium",
-                        );
-                        ui.selectable_value(
-                            &mut self.cur_ticket_priority,
-                            ItemPriority::High,
-                            "High",
-                        );
-                        ui.selectable_value(
-                            &mut self.cur_ticket_priority,
-                            ItemPriority::Critical,
-                            "Critical",
-                        );
+                // Only show form if meant to be shown.
+                if (self.show_ticket_form) {
+                    // || {} == () => {}
+                    ui.horizontal(|ui| {
+                        let ticket_name_label = ui.label("Ticket title: ");
+                        ui.text_edit_singleline(&mut self.cur_ticket_name)
+                            .labelled_by(ticket_name_label.id);
                     });
 
-                let ticket_button: egui::Response = ui.button("Submit ticket");
+                    ui.add(egui::TextEdit::multiline(&mut self.cur_ticket_message));
 
-                // If submit button clicked, create a new ticket,
-                if ticket_button.clicked() {
-                    if self.cur_ticket_priority != ItemPriority::NA {
-                        self.issues.push(Issue {
-                            name: String::from(self.cur_ticket_name.clone()),
-                            description: String::from(self.cur_ticket_message.clone()),
-                            reporter: String::from(self.users[self.logged_in_as].email.clone()),
-                            comment_thread: Vec::new(),
-                            priority: self.cur_ticket_priority.clone(),
-                            status: ItemStatus::New,
-                            // Creating a substring using the &...[..10]
-                            time_created: String::from(&(Local::now().to_string())[..10]),
+                    egui::ComboBox::from_label("Priority:")
+                        .selected_text(self.cur_ticket_priority.to_string())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.cur_ticket_priority,
+                                ItemPriority::Low,
+                                "Low",
+                            );
+                            ui.selectable_value(
+                                &mut self.cur_ticket_priority,
+                                ItemPriority::Medium,
+                                "Medium",
+                            );
+                            ui.selectable_value(
+                                &mut self.cur_ticket_priority,
+                                ItemPriority::High,
+                                "High",
+                            );
+                            ui.selectable_value(
+                                &mut self.cur_ticket_priority,
+                                ItemPriority::Critical,
+                                "Critical",
+                            );
+                        });
+
+                    let ticket_button: egui::Response = ui.button("Submit ticket");
+
+                    // If submit button clicked, create a new ticket,
+                    if ticket_button.clicked() {
+                        if self.cur_ticket_priority != ItemPriority::NA {
+                            self.issues.push(Issue {
+                                name: String::from(self.cur_ticket_name.clone()),
+                                description: String::from(self.cur_ticket_message.clone()),
+                                reporter: String::from(self.users[self.logged_in_as].email.clone()),
+                                comment_thread: Vec::new(),
+                                priority: self.cur_ticket_priority.clone(),
+                                status: ItemStatus::New,
+                                // Creating a substring using the &...[..10]
+                                time_created: String::from(&(Local::now().to_string())[..10]),
+                            });
+                        }
+
+                        // Reset all values.
+                        self.cur_ticket_message = String::from("");
+                        self.cur_ticket_name = String::from("");
+                        self.cur_ticket_priority = ItemPriority::NA;
+                        self.show_ticket_form = false;
+                    }
+                }
+
+                let mut i: usize = 0;
+                // Draw each existing ticket.
+                for issue in self.issues.iter_mut() {
+                    // Only draw ticket's you have raised, not other users!
+                    if (issue.reporter == self.users[self.logged_in_as].email) {
+                        ui.horizontal(|ui| {
+                            ui.label(format!(
+                                "{} | {} | {} | {} | {} ",
+                                issue.name,
+                                issue.reporter,
+                                issue.priority,
+                                issue.status,
+                                issue.time_created
+                            ));
+                            let issue_button = ui.button("View ticket");
+                            if issue_button.clicked() {
+                                self.focus_issue = i;
+                            }
                         });
                     }
-
-                    // Reset all values.
-                    self.cur_ticket_message = String::from("");
-                    self.cur_ticket_name = String::from("");
-                    self.cur_ticket_priority = ItemPriority::NA;
-                    self.show_ticket_form = false;
+                    i += 1;
                 }
-            }
+            } else {
+                let focused_issue: &Issue = &self.issues[self.focus_issue];
+                ui.heading(format!("Issue: {}", focused_issue.name));
+                ui.label(format!(
+                    "Description: {}",
+                    focused_issue.description.clone()
+                ));
+                ui.label(format!("Reported By: {}", focused_issue.reporter.clone()));
+                ui.label(format!(
+                    "Reported On: {}",
+                    focused_issue.time_created.clone()
+                ));
+                ui.label(format!("Priority: {}", focused_issue.priority));
+                ui.label(format!("Status: {}", focused_issue.status));
 
-            // Draw each existing ticket.
-            for issue in self.issues.iter_mut() {
-                // Only draw ticket's you have raised, not other users!
-                if (issue.reporter == self.users[self.logged_in_as].email) {
-                    ui.label(format!(
-                        "{} | {} | {} | {} | {} ",
-                        issue.name,
-                        issue.reporter,
-                        issue.priority,
-                        issue.status,
-                        issue.time_created
-                    ));
+                let back_button = ui.button("Back");
+                if back_button.clicked() {
+                    self.focus_issue = usize::MAX;
                 }
             }
         });
