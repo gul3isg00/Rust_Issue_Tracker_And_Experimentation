@@ -19,11 +19,18 @@ enum UserType {
 #[allow(clippy::upper_case_acronyms)]
 type DateTime = String;
 
+struct ItemComment {
+    commenter: String,
+    message: String,
+    time_created: DateTime
+}
+
 struct TodoItem {
     name: String,
     description: String,
     reporter: String,
     reviewer: String,
+    comment_thread: Vec<ItemComment>,
     priority: ItemPriority,
     status: ItemStatus,
     time_created: DateTime,
