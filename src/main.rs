@@ -11,6 +11,11 @@ enum ItemStatus {
     Closed,
 }
 
+enum UserType {
+    Client,
+    Admin,
+}
+
 #[allow(clippy::upper_case_acronyms)]
 type DateTime = String;
 
@@ -24,8 +29,29 @@ struct TodoItem {
     time_created: DateTime,
 }
 
+struct User {
+    email: String,
+    password: String,
+    username: String,
+    user_type: UserType,
+}
+
 fn main() {
-    println!("Hello, world!");
+    let default_admin = User {
+        email: String::from("admin@test.com"),
+        password: String::from("encrypted-password"),
+        username: String::from("TheBeesKnees"),
+        user_type: UserType::Admin,
+    };
+
+    let default_client = User {
+        email: String::from("client@test.com"),
+        password: String::from("encrypted-password"),
+        username: String::from("BiteAtTheHand"),
+        user_type: UserType::Client,
+    };
+
+    println!("{}", default_admin.email);
 }
 
 // USE A STRUCT
