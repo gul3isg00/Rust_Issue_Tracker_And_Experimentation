@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use eframe::egui;
+use egui::Response;
+use chrono::Local;
 
 enum ItemPriority {
     Low,
@@ -66,7 +68,8 @@ struct ClientApp {
     users: Vec<User>,
     issues: Vec<Issue>,
     loggedInAs: usize,
-    age: u32,
+    cur_ticket_message: String,
+    cur_ticket_name: String
 }
 
 // Instantiates the default variables.
@@ -75,21 +78,22 @@ impl Default for ClientApp {
         Self {
             users: Vec::from([
                 User {
-                    email: String::from("admin@test.com"),
-                    password: String::from("encrypted-password"),
-                    username: String::from("TheBeesKnees"),
-                    user_type: UserType::Admin,
-                },
-                User {
                     email: String::from("client@test.com"),
                     password: String::from("encrypted-password"),
                     username: String::from("BiteAtTheHand"),
                     user_type: UserType::Client,
                 },
+                User {
+                    email: String::from("admin@test.com"),
+                    password: String::from("encrypted-password"),
+                    username: String::from("TheBeesKnees"),
+                    user_type: UserType::Admin,
+                },
             ]),
             loggedInAs: 0,
+            cur_ticket_message: String::from(""),
+            cur_ticket_name: String::from(""),
             issues: Vec::new(),
-            age: 21,
         }
     }
 }
@@ -97,18 +101,28 @@ impl Default for ClientApp {
 // Defines the interface and interactions
 impl eframe::App for ClientApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Rust Issue Tracker");
-            ui.horizontal(|ui| {
-                let name_label = ui.label("Currently logged in as: ");
-                ui.text_edit_singleline(&mut self.users[self.loggedInAs].username)
-                    .labelled_by(name_label.id);
-            });
-            ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-            if ui.button("Increment").clicked() {
-                self.age += 1;
+            ui.add(egui::Label::new(format!(
+                "Currently logged in as: {}",
+                self.users[self.loggedInAs].username
+            )));
+            let ticket_name_label = ui.label("Ticket title: ");
+            let ticket_name_input: egui::Response = ui.add(egui::TextEdit::singleline(&mut self.cur_ticket_name)).labelled_by(ticket_name_label.id);
+            let ticket_input: egui::Response = ui.add(egui::TextEdit::multiline(&mut self.cur_ticket_message));
+            let ticket_button: egui::Response = ui.button("Raise new ticket");
+            if ticket_button.clicked() {
+                self.issues.push(Issue{
+                    name: String::from(self.cur_ticket_name.clone()),
+                    description: String::from(self.cur_ticket_message.clone()),
+                    reporter: String::from(self.users[self.loggedInAs].email.clone()),
+                    comment_thread: Vec::new(),
+                    priority: ItemPriority::Critical,
+                    status: ItemStatus::New,
+                    time_created: Local::now().to_string(),
+                });
             }
-            ui.label(format!("Age {}",self.age));
 
             // ui.image(egui::include_image!(
             // ));
