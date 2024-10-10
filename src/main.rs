@@ -109,7 +109,9 @@ struct ClientApp {
     cur_ticket_message: String,
     cur_ticket_priority: ItemPriority,
     cur_ticket_name: String,
+    cur_comment: String,
     show_ticket_form: bool,
+    adding_comment: bool,
     focus_issue: usize,
 }
 
@@ -136,8 +138,10 @@ impl Default for ClientApp {
             cur_ticket_message: String::from(""),
             cur_ticket_name: String::from(""),
             cur_ticket_priority: ItemPriority::NA,
+            cur_comment: String::from(""),
             issues: Vec::new(),
             show_ticket_form: false,
+            adding_comment: false,
         }
     }
 }
@@ -244,6 +248,10 @@ impl eframe::App for ClientApp {
                             let issue_button = ui.button("View ticket");
                             if issue_button.clicked() {
                                 self.focus_issue = i;
+                                self.cur_comment = String::from("");
+                                self.cur_ticket_message = String::from("");
+                                self.cur_ticket_name = String::from("");
+                                self.cur_ticket_priority = ItemPriority::NA;
                             }
                         });
                     }
@@ -263,6 +271,27 @@ impl eframe::App for ClientApp {
                 ));
                 ui.label(format!("Priority: {}", focused_issue.priority));
                 ui.label(format!("Status: {}", focused_issue.status));
+
+                ui.label(format!("Comments: "));
+
+                // Only show this if comment button clicked
+
+                let mut show_text = String::from("Add new");
+
+                if (self.adding_comment) {
+                    show_text = String::from("Discard")
+                }
+
+                let add_comment_button: egui::Response =
+                    ui.button(format!("{} comment", show_text));
+                if add_comment_button.clicked() {
+                    self.adding_comment = !self.adding_comment;
+                }
+                if(self.adding_comment){
+                    ui.add(egui::TextEdit::multiline(&mut self.cur_ticket_message));
+                }
+
+                // Draw all comments
 
                 let back_button = ui.button("Back");
                 if back_button.clicked() {
