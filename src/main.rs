@@ -287,8 +287,18 @@ impl eframe::App for ClientApp {
                 if add_comment_button.clicked() {
                     self.adding_comment = !self.adding_comment;
                 }
-                if(self.adding_comment){
+                if (self.adding_comment) {
                     ui.add(egui::TextEdit::multiline(&mut self.cur_ticket_message));
+
+                    let post_comment_button: egui::Response = ui.button(format!("Post comment"));
+                    if post_comment_button.clicked() {
+                        // Post comment
+                        // focused_issue.comment_thread.push(ItemComment {
+                        //     commenter: self.users[self.logged_in_as].email,
+                        //     message: self.cur_comment.clone(),
+                        //     time_created: String::from(Local::now().to_string()),
+                        // });
+                    }
                 }
 
                 // Draw all comments
