@@ -1,7 +1,7 @@
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use chrono::Local;
 use eframe::egui;
-use std::{fmt, usize};
+use std::{cmp::Ordering, fmt, usize};
 
 #[derive(PartialEq, Eq, Clone)]
 enum ItemPriority {
@@ -45,8 +45,66 @@ enum UserType {
     Admin,
 }
 
+// Define date time as a glorified string
 #[allow(clippy::upper_case_acronyms)]
-type DateTime = String;
+struct DateTime(String);
+
+// Need to add validation that a date is a date in the correct format!
+impl DateTime {
+    // used to instantiate a new datetime
+    fn new() -> DateTime {
+        return DateTime(String::from(Local::now().to_string()));
+    }
+
+    // Return substrings depending on the information you want to show
+    fn get_date(&self) -> String {
+        return String::from(&(self.0.clone()[..10]));
+    }
+
+    fn get_time(&self) -> String {
+        return String::from(&(self.0.clone()[..16]));
+    }
+
+    // Create a compare function which determines what time is first
+    fn compare(&self, other: &DateTime) -> Ordering {
+        let mut shortest_length = 0;
+        // Used as if two numbers are the exact same up to the length of one number, the biggest number will be the longest
+        // e.g.
+        // 101.1
+        // vs
+        // 101
+        // The longer number is bigger
+        let mut self_shortest = Ordering::Equal;
+
+        if self.0.len() > other.0.len() {
+            shortest_length = other.0.len();
+            self_shortest = Ordering::Greater;
+        } else if other.0.len() > self.0.len() {
+            shortest_length = self.0.len();
+            self_shortest = Ordering::Less;
+        } else {
+            shortest_length = self.0.len()
+        }
+
+        let mut x = 0;
+        while x < shortest_length {
+            // Grab the number from each character
+            let cur_num1 = self.0.chars().nth(x).unwrap() as i32 - 0x30;
+            let cur_num2 = other.0.chars().nth(x).unwrap() as i32 - 0x30;
+
+            // Return the appropriate ordering
+            if cur_num1 > cur_num2 {
+                return Ordering::Greater;
+            } else if cur_num1 > cur_num2 {
+                return Ordering::Less;
+            }
+
+            x += 1;
+        }
+
+        return self_shortest;
+    }
+}
 
 struct ItemComment {
     commenter: String,
@@ -73,7 +131,7 @@ impl Default for Issue {
             comment_thread: Vec::new(),
             priority: ItemPriority::NA,
             status: ItemStatus::New,
-            time_created: String::from(&(Local::now().to_string())[..10]),
+            time_created: DateTime::new(),
         }
     }
 }
@@ -169,6 +227,7 @@ impl eframe::App for ClientApp {
                 if create_ticket_button.clicked() {
                     self.show_ticket_form = !self.show_ticket_form;
                 }
+                let r: Vec<i32> = Vec::new();
 
                 // Only show form if meant to be shown.
                 if (self.show_ticket_form) {
@@ -219,7 +278,7 @@ impl eframe::App for ClientApp {
                                 priority: self.cur_ticket_priority.clone(),
                                 status: ItemStatus::New,
                                 // Creating a substring using the &...[..10]
-                                time_created: String::from(&(Local::now().to_string())[..10]),
+                                time_created: DateTime::new(),
                             });
                         }
 
@@ -243,7 +302,7 @@ impl eframe::App for ClientApp {
                                 issue.reporter,
                                 issue.priority,
                                 issue.status,
-                                issue.time_created
+                                issue.time_created.get_date()
                             ));
                             let issue_button = ui.button("View ticket");
                             if issue_button.clicked() {
@@ -258,7 +317,7 @@ impl eframe::App for ClientApp {
                     i += 1;
                 }
             } else {
-                let focused_issue: &Issue = &self.issues[self.focus_issue];
+                let mut focused_issue: &Issue = &self.issues[self.focus_issue];
                 ui.heading(format!("Issue: {}", focused_issue.name));
                 ui.label(format!(
                     "Description: {}",
@@ -267,7 +326,7 @@ impl eframe::App for ClientApp {
                 ui.label(format!("Reported By: {}", focused_issue.reporter.clone()));
                 ui.label(format!(
                     "Reported On: {}",
-                    focused_issue.time_created.clone()
+                    focused_issue.time_created.get_time()
                 ));
                 ui.label(format!("Priority: {}", focused_issue.priority));
                 ui.label(format!("Status: {}", focused_issue.status));
@@ -288,20 +347,35 @@ impl eframe::App for ClientApp {
                     self.adding_comment = !self.adding_comment;
                 }
                 if (self.adding_comment) {
-                    ui.add(egui::TextEdit::multiline(&mut self.cur_ticket_message));
+                    ui.add(egui::TextEdit::multiline(&mut self.cur_comment));
 
                     let post_comment_button: egui::Response = ui.button(format!("Post comment"));
                     if post_comment_button.clicked() {
-                        // Post comment
-                        // focused_issue.comment_thread.push(ItemComment {
-                        //     commenter: self.users[self.logged_in_as].email,
-                        //     message: self.cur_comment.clone(),
-                        //     time_created: String::from(Local::now().to_string()),
-                        // });
+                        self.issues[self.focus_issue]
+                            .comment_thread
+                            .push(ItemComment {
+                                commenter: self.users[self.logged_in_as].email.clone(),
+                                message: self.cur_comment.clone(),
+                                time_created: DateTime::new(),
+                            });
+                        self.cur_comment = String::from("");
+                        self.issues[self.focus_issue]
+                            .comment_thread
+                            .sort_by(|a, b| {
+                                Ordering::reverse(a.time_created.compare(&b.time_created))
+                            });
                     }
                 }
 
                 // Draw all comments
+                for comment in self.issues[self.focus_issue].comment_thread.iter_mut() {
+                    ui.label(format!(
+                        "{} | {} | {} ",
+                        comment.time_created.get_time(),
+                        comment.commenter,
+                        comment.message
+                    ));
+                }
 
                 let back_button = ui.button("Back");
                 if back_button.clicked() {
