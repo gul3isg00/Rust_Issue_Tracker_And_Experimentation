@@ -3060,6 +3060,7 @@ dependencies = [
  "egui_extras",
  "env_logger",
  "fmt",
+ "rand",
  "rusqlite",
  "strum",
  "tui",
