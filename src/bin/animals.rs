@@ -109,8 +109,15 @@ impl Animal {
     fn interact(&mut self, mut animal: Animal) {
         let outcome = Group::interaction(self.get_group(), animal.get_group());
         if outcome == Interaction::Eats {
-
+            self.consume(animal);
         }
+    }
+
+    fn pump_stomach(&mut self) -> Vec<Animal>{
+        // implement copy
+        let contents = Vec::from(self.0.stomach_contents);
+        self.0.stomach_contents = Vec::new();
+        return contents;
     }
 }
 
